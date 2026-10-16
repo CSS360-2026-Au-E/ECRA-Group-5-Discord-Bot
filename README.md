@@ -1,3 +1,24 @@
+Team ECRA – Discord Bot
+
+CSS 360 Software Engineering, Autumn 2026
+
+Team:
+- Zad
+- Ilakshi
+- Hakan 
+- Sarah
+- Cam
+
+Project Info:
+We're building a Discord bot with fun games and helpful commands for our server. Feature ideas are being brainstormed on our Kanban board.
+
+Status:
+Sprint 1: Repo, Kanban board, and Discord servers set up. Brainstorming features on our board.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=542440024)
 
 # Javascript Discord Welcome MemeBot with GitHub Codespaces
