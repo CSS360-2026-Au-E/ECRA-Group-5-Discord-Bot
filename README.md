@@ -1,4 +1,4 @@
-Team ECRA – Discord Bot
+Team ECRA – Discord Bot h
 
 CSS 360 Software Engineering, Autumn 2026
 
