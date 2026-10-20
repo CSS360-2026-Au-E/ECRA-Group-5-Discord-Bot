@@ -25,7 +25,7 @@ const getWelcomeMessage = (userId) => {
   */
   return {
     content: `Welcome ${userMention(userId)},
-    Hope you have great time here!
+    JSN is the best Wide receiver in the league. Remember that.
   `,
   };
 };
