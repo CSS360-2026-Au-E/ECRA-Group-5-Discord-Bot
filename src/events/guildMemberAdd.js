@@ -24,8 +24,7 @@ const getWelcomeMessage = (userId) => {
     Play around with the code here and customise the welcome message.
   */
   return {
-    content: `Welcome ${userMention(userId)},
-    JSN is the best Wide receiver in the league. Remember that.
+    content: `Welcome ${userMention(userId)}, JSN is the best Wide receiver in the league. Remember that.
   `,
   };
 };
