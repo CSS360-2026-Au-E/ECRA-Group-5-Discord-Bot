@@ -76,6 +76,27 @@ export function getHours(dateStr) {
   return hours;
 }
 
+// A day's hour slots as text, ready to send in a Discord message.
+// The current hour is marked with ◀ when the day is today.
+// fromHour/toHour (0-23) limit which hours are shown.
+export function dayToText(dateStr, fromHour = 0, toHour = 23) {
+  if (fromHour > toHour) {
+    throw new Error("The start hour must be before the end hour.");
+  }
+  const day = toDate(dateStr);
+  const t = now();
+  const isToday = day.hasSame(t, "day");
+
+  const lines = getHours(dateStr)
+    .filter((slot) => slot.hour >= fromHour && slot.hour <= toHour)
+    .map((slot) => {
+      const mark = isToday && slot.hour === t.hour ? "  ◀ now" : "";
+      return `${slot.label.padStart(5)} |${mark}`;
+    });
+
+  return `**${formatDate(day)}** (${day.toFormat("ZZZZ")})\n\`\`\`\n${lines.join("\n")}\n\`\`\``;
+}
+
 // ---------- Months ----------
 
 // The weeks of a month (month is 1-12), Sunday first.
