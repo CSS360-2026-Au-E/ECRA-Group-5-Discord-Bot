@@ -1,7 +1,7 @@
 {
-  "name": "memebot_discord",
+  "name": "Calendar_discord_bot",
   "version": "1.0.0",
-  "description": "this is a demo project for teaching how to build a discord bot",
+  "description": "this is a project for making a calendar bot that will store events and tasks",
   "scripts": {
     "build": "rm -rf build && esbuild src/*.js src/**/*.js --platform=node --format=cjs  --outdir=build --outbase=src",
     "start": "npm run build && node -r dotenv/config build/app.js",
