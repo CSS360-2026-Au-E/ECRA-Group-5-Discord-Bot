@@ -142,3 +142,15 @@ export function monthToText(year, month) {
   }
   return `**${first.toFormat("LLLL yyyy")}** (Pacific time)\n\`\`\`\n${lines.join("\n")}\n\`\`\``;
 }
+
+// ---------- Times ----------
+
+// "9:05" -> "09:05", or null if it isn't a real 24-hour time
+export function normalizeTime(text) {
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
