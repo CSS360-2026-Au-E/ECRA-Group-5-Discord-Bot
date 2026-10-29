@@ -22,10 +22,11 @@ export function saveTasks(tasks) {
 }
 
 // Add one new task and give it the next ID number
-export function addTask({ title, due, assigneeIds, createdBy }) {
+export function addTask({ title, due, time, assigneeIds, createdBy }) {
+  // ...
   const tasks = getTasks();
   const nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
-  const newTask = { id: nextId, title, due, assigneeIds, createdBy, done: false };
+  const newTask = { id: nextId, title, due, time, assigneeIds, createdBy, done: false };
   tasks.push(newTask);
   saveTasks(tasks);
   return newTask;

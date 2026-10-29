@@ -5,8 +5,8 @@ import { addTask } from "./taskStore";
 // How many people one task can be assigned to.
 const MAX_ASSIGNEES = 5;
 
-// /task add title:Write sprint report due:2026-11-03 assignee:@Sarah
-// /task add title:Demo prep due:2026-11-05 assignee:@Sarah assignee2:@Cam assignee3:@Zad
+// /task add title:Write sprint report due:2026-11-03 time:17:00 assignee:@Sarah
+// /task add title:Demo prep due:2026-11-05 time:09:30 assignee:@Sarah assignee2:@Cam assignee3:@Zad
 export const taskCommand = {
   data: new SlashCommandBuilder()
     .setName("task")
@@ -20,6 +20,9 @@ export const taskCommand = {
         )
         .addStringOption((o) =>
           o.setName("due").setDescription("Due date as YYYY-MM-DD, e.g. 2026-11-03").setRequired(true)
+        )
+        .addStringOption((o) =>
+          o.setName("time").setDescription("Due time as HH:MM, 24-hour Pacific, e.g. 17:00").setRequired(true)
         )
         .addUserOption((o) =>
           o.setName("assignee").setDescription("Who the task is for").setRequired(true)
@@ -39,6 +42,7 @@ export const taskCommand = {
 
     const title = interaction.options.getString("title").trim();
     const due = interaction.options.getString("due").trim();
+    const time = cal.normalizeTime(interaction.options.getString("time").trim());
 
     // Collect everyone picked, skipping empty slots and duplicates.
     const assigneeIds = [];
@@ -56,13 +60,23 @@ export const taskCommand = {
         ephemeral: true,
       });
     }
-    if (due < cal.today()) {
-      return interaction.reply({ content: "That due date has already passed.", ephemeral: true });
+    if (!time) {
+      return interaction.reply({
+        content: "That is not a valid time. Use 24-hour HH:MM, e.g. 17:00.",
+        ephemeral: true,
+      });
+    }
+
+    const [hour, minute] = time.split(":").map(Number);
+    const dueAt = cal.toDate(due).set({ hour, minute });
+    if (dueAt < cal.now()) {
+      return interaction.reply({ content: "That due time has already passed.", ephemeral: true });
     }
 
     const saved = addTask({
       title,
       due,
+      time,
       assigneeIds,
       createdBy: interaction.user.username,
     });
@@ -70,7 +84,7 @@ export const taskCommand = {
     return interaction.reply(
       `📝 **Task added!**\n` +
         `**Title:** ${saved.title}\n` +
-        `**Due:** ${cal.formatDate(cal.toDate(saved.due))}\n` +
+        `**Due:** ${dueAt.toFormat("ccc, LLL d, yyyy 'at' h:mm a ZZZZ")}\n` +
         `**Assigned to:** ${saved.assigneeIds.map((id) => userMention(id)).join(", ")}\n` +
         `**Task ID:** ${saved.id}`
     );
