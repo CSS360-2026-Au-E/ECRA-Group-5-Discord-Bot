@@ -24,8 +24,10 @@ export function today() {
 
 // ---------- Dates ----------
 
-// True if the text is a real date in YYYY-MM-DD format.
+// True if the text is a real date written exactly as YYYY-MM-DD
+// (rejects "2026-11", "20261103", and impossible dates like 2026-02-30).
 export function isValidDate(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
   return DateTime.fromISO(dateStr, { zone: ZONE }).isValid;
 }
 
