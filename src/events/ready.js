@@ -1,3 +1,4 @@
+import { startReminderScheduler } from "../reminders/reminderScheduler";
 import { commands } from "../helpers/commands";
 
 const event = {
@@ -10,6 +11,8 @@ const event = {
     for (const guild of client.guilds.cache.values()) {
       await guild.commands.set(commandData);
     }
+    
+    startReminderScheduler(client);
 
     console.log(`
     ############################################################
