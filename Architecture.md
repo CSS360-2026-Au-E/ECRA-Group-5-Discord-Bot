@@ -1,5 +1,5 @@
 Architecture.md file
-## Activity Diagrams: Calendar Events (Jay)
+## Activity Diagrams: Calendar Events (Hakan)
 
 These activity diagrams show the step-by-step flow when a user runs `/event add` and `/event edit`, including each decision the bot makes.
 
