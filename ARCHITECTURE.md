@@ -281,3 +281,67 @@ classDiagram
 - Reminders use `type` and `itemId` to identify a task or event. The scheduler checks every 30 seconds, sends DMs, and skips reminders for deleted items or completed tasks.
 - `Task` also stores `completedAt` when completed. `Reminder` stores `skipped` when skipped.
 - **To add a command:** Create a module with `data` and `execute(interaction)`, then add it to the array in `src/helpers/commands.js`.
+
+## Network Diagram (Cameron)
+
+This diagram shows how a `/calendar` or `/day` command travels from a member in our Discord server, through Discord's platform, to the bot running in GitHub Codespaces, and back.
+
+```mermaid
+flowchart LR
+    subgraph Dev["Development"]
+        Repo["GitHub repo + Kanban"]
+    end
+
+    subgraph Runtime["Bot runtime: Node.js in GitHub Codespaces"]
+        Client["discord.js client"]
+        Which{{"Which command?"}}
+        Cal["/calendar:<br/>month and year view"]
+        Day["/day:<br/>hourly view"]
+        Valid{{"Valid date<br/>and hours?"}}
+        Build["Build calendar text,<br/>mark today * or<br/>current hour ◀ now"]
+    end
+
+    subgraph Discord["Discord platform"]
+        Registry["Slash command<br/>registry"]
+        GW["Gateway<br/>(WebSocket events)"]
+        API["Discord API<br/>(HTTPS)"]
+    end
+
+    subgraph Server["ECRA Discord server"]
+        Member(["Member"])
+        Channel["Server channel"]
+    end
+
+    Repo -->|"code (git, HTTPS :443)"| Client
+    Client -->|"register commands at startup<br/>(HTTPS :443)"| Registry
+    Registry -.->|"shows commands in / menu"| Member
+    Member -->|"types slash command<br/>(Discord app, HTTPS :443)"| API
+    API -.-> GW
+    GW -->|"interaction event<br/>(WSS :443)"| Client
+
+    Client --> Which
+    Which -->|"calendar"| Cal
+    Which -->|"day"| Day
+    Cal --> Build
+    Day --> Valid
+    Valid -->|"yes"| Build
+    Valid -->|"no: error"| API
+    Build -->|"reply (HTTPS :443)"| API
+
+    API -->|"calendar reply"| Channel
+    API -->|"private error<br/>(only sender sees it)"| Member
+```
+
+**Legend:** Rectangles are services or parts of the bot, hexagons are decisions, and the rounded shape is a person. Arrows between groups are network traffic, labeled with the protocol and port. Dotted arrows happen inside Discord's platform.
+
+### Network Diagram Description
+
+- **Four parts of the system are involved:** Development (the GitHub repo), the bot runtime (Node.js in a Codespace), the Discord platform, and our Discord server.
+- **A command's path:** A member types a slash command in the Discord app, which sends it to Discord's API. Discord delivers it to the bot as an `interactionCreate` event over the Gateway WebSocket. The bot builds the calendar text in Pacific time and sends the reply back through Discord's API, and Discord shows it in the server channel.
+- **The bot only makes outbound connections.** It opens the WebSocket to the Gateway itself and sends HTTPS requests to Discord's API, both on port 443 with TLS encryption. It never listens on a port, so it needs no public URL or open firewall port. That's why it can run inside a Codespace.
+- **Members never connect to the bot directly.** Their Discord app talks only to Discord, and Discord relays everything between them and the bot.
+- **Commands are registered when the bot starts.** `src/events/ready.js` sends the command list from `src/helpers/commands.js` to Discord's slash command registry. That's how `/calendar` and `/day` appear in the `/` menu.
+- **Discord checks some input before the bot sees it.** The registry stores each option's limits (month 1–12, year 1970–2100, hours 0–23), so Discord rejects values outside them. The bot only checks `/day`'s date and that the start hour isn't after the end hour.
+- **Error messages are private.** An invalid `/day` input sends an ephemeral reply, so only the member who ran the command sees it.
+- **The bot logs in with the `TOKEN` in `.env`.** `.env` is in `.gitignore`, so the token never goes to GitHub.
+- **The bot goes offline when its Codespace stops.** By default, that happens after 30 minutes of inactivity.
