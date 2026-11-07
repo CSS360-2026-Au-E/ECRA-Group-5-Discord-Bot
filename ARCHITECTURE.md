@@ -1,4 +1,4 @@
-Architecture.md file
+ARCHITECTURE.md file
 ## Activity Diagrams: Calendar Events (Hakan)
 
 These activity diagrams show the step-by-step flow when a user runs `/event add` and `/event edit`, including each decision the bot makes.
@@ -44,7 +44,7 @@ flowchart TD
 - Both commands check the input **before** saving, so bad data never gets into `events.json`.
 - Known limit: anyone can edit any event right now. A future fix is to only let the creator or a moderator edit it.
 
-## System Context Diagram
+## System Context Diagram (Zad)
 
 ```mermaid
 flowchart LR
@@ -102,7 +102,7 @@ The diagram also illustrates the **development and deployment process**, includi
 
 Local JSON files store application data within the system boundary, so no external database is shown.
 
-## Use Case Diagram
+## Use Case Diagram (Ilakshi)
 
 ```mermaid
 flowchart LR
@@ -161,3 +161,123 @@ This diagram shows how users and the system interact with the Calendar & Task Bo
 - **Create reminder** (`/reminder add`): schedule a reminder for an existing task or event.
 - **Send due reminders**: DM the reminder's creator when it's due. Reminders for deleted events or completed tasks are skipped.
 - **Validate date & time** («include»): every use case that creates something with a date checks that the date is a real `YYYY-MM-DD` date and the time is a valid 24-hour `HH:MM`.
+
+## Class Diagram: Bot Structure (Sarah)
+
+This diagram shows how the bot's command modules, storage modules, and data records connect. The bot uses JavaScript modules and plain objects instead of declared classes. `CalendarEvent`, `Task`, and `Reminder` represent objects saved as JSON in `data/`. `Commands` represents the five command modules, and `EventHandlers` represents the three event modules in `src/events/`. The other boxes represent ES modules.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class EventHandlers {
+        +ready
+        +interactionCreate
+        +guildMemberAdd
+    }
+
+    class Commands {
+        +calendarCommand
+        +dayCommand
+        +eventCommand
+        +taskCommand
+        +reminderCommand
+    }
+
+    class Calendar {
+        +now()
+        +today()
+        +formatDate()
+        +formatTime()
+        +monthToText()
+        +dayToText()
+    }
+
+    class CalendarStore {
+        +getCalendarEvents()
+        +addCalendarEvent()
+        +updateCalendarEvent()
+        +deleteCalendarEvent()
+    }
+
+    class TaskStore {
+        +getTasks()
+        +addTask()
+        +updateTask()
+        +setTaskDone()
+    }
+
+    class ReminderStore {
+        +getReminders()
+        +addReminder()
+    }
+
+    class ReminderScheduler {
+        +startReminderScheduler()
+    }
+
+    class Client {
+        +users
+    }
+
+    class CalendarEvent {
+        +id
+        +title
+        +date
+        +time
+        +location
+        +description
+        +createdBy
+    }
+
+    class Task {
+        +id
+        +title
+        +due
+        +time
+        +assigneeIds
+        +createdBy
+        +done
+    }
+
+    class Reminder {
+        +id
+        +type
+        +itemId
+        +title
+        +remindAt
+        +createdBy
+        +sent
+    }
+
+    EventHandlers ..> Commands : registers and runs commands
+    EventHandlers ..> ReminderScheduler : ready starts
+
+    Commands ..> Calendar : uses
+    Commands ..> CalendarStore : uses
+    Commands ..> TaskStore : uses
+    Commands ..> ReminderStore : uses
+
+    ReminderScheduler ..> ReminderStore : uses
+    ReminderScheduler ..> TaskStore : uses
+    ReminderScheduler ..> CalendarStore : uses
+    ReminderScheduler ..> Calendar : uses
+    ReminderScheduler ..> Client : sends DMs
+
+    CalendarStore --> CalendarEvent : stores
+    TaskStore --> Task : stores
+    ReminderStore --> Reminder : stores
+
+    Reminder ..> Task : references by itemId
+    Reminder ..> CalendarEvent : references by itemId
+```
+
+**Legend:** Dotted arrows show dependencies. Solid arrows show which data records each storage module saves.
+
+### Notes
+
+- `ready` registers the five commands and starts the reminder scheduler. `interactionCreate` finds and runs the selected command.
+- `calendarStore`, `taskStore`, and `reminderStore` save data in `events.json`, `tasks.json`, and `reminders.json` in the `data/` folder.
+- Reminders use `type` and `itemId` to identify a task or event. The scheduler checks every 30 seconds, sends DMs, and skips reminders for deleted items or completed tasks.
+- `Task` also stores `completedAt` when completed. `Reminder` stores `skipped` when skipped.
+- **To add a command:** Create a module with `data` and `execute(interaction)`, then add it to the array in `src/helpers/commands.js`.
