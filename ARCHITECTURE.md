@@ -281,3 +281,49 @@ classDiagram
 - Reminders use `type` and `itemId` to identify a task or event. The scheduler checks every 30 seconds, sends DMs, and skips reminders for deleted items or completed tasks.
 - `Task` also stores `completedAt` when completed. `Reminder` stores `skipped` when skipped.
 - **To add a command:** Create a module with `data` and `execute(interaction)`, then add it to the array in `src/helpers/commands.js`.
+
+Network Diagram (Cameron)
+
+This diagram shows how a /calendar or /day command travels from a member in our Discord server, through Discord's platform, to the bot running in GitHub Codespaces, and back.
+
+ECRA Discord server
+Discord platform
+Bot runtime: Node.js in GitHub Codespaces
+Development
+code (git, HTTPS :443)
+register commands atstartup(HTTPS :443)
+shows commands in /menu
+types slash command(Discord app, HTTPS :443)
+interaction event(WSS :443)
+calendar
+day
+yes
+no: error
+reply (HTTPS :443)
+calendar reply
+private error(only sender sees it)
+GitHub repo + Kanban
+discord.js client
+Which command?
+/calendar:month and year view
+/day:hourly view
+Valid dateand hours?
+Build calendar text,mark today * orcurrent hour ◀ now
+Slash commandregistry
+Gateway(WebSocket events)
+Discord API(HTTPS)
+Member
+Server channel
+
+Legend: Rectangles are services or parts of the bot, hexagons are decisions, and the rounded shape is a person. Arrows between groups are network traffic, labeled with the protocol and port. Dotted arrows happen inside Discord's platform.
+
+Network Diagram Description
+Four parts of the system are involved: Development (the GitHub repo), the bot runtime (Node.js in a Codespace), the Discord platform, and our Discord server.
+A command's path: A member types a slash command in the Discord app, which sends it to Discord's API. Discord delivers it to the bot as an interactionCreate event over the Gateway WebSocket. The bot builds the calendar text in Pacific time and sends the reply back through Discord's API, and Discord shows it in the server channel.
+The bot only makes outbound connections. It opens the WebSocket to the Gateway itself and sends HTTPS requests to Discord's API, both on port 443 with TLS encryption. It never listens on a port, so it needs no public URL or open firewall port. That's why it can run inside a Codespace.
+Members never connect to the bot directly. Their Discord app talks only to Discord, and Discord relays everything between them and the bot.
+Commands are registered when the bot starts. src/events/ready.js sends the command list from src/helpers/commands.js to Discord's slash command registry. That's how /calendar and /day appear in the / menu.
+Discord checks some input before the bot sees it. The registry stores each option's limits (month 1–12, year 1970–2100, hours 0–23), so Discord rejects values outside them. The bot only checks /day's date and that the start hour isn't after the end hour.
+Error messages are private. An invalid /day input sends an ephemeral reply, so only the member who ran the command sees it.
+The bot logs in with the TOKEN in .env. .env is in .gitignore, so the token never goes to GitHub.
+The bot goes offline when its Codespace stops. By default, that happens after 30 minutes of inactivity.
