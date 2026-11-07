@@ -112,3 +112,62 @@ The diagram also illustrates the **development and deployment process**, includi
 
 Local JSON files store application data within the system boundary, so no external database is shown.
 
+## Use Case Diagram
+
+```mermaid
+flowchart LR
+    Member["👤<br/>Server Member"]
+
+    UC1(["View month calendar"])
+    UC2(["View day schedule"])
+    UC3(["Add event"])
+    UC4(["Edit event"])
+    UC5(["Delete event"])
+    UC6(["Add & assign task"])
+    UC7(["Edit task"])
+    UC8(["Complete / reopen task"])
+    UC9(["Create reminder"])
+    UC10(["Send due reminders"])
+    UC11(["Validate date & time"])
+
+    Assignee["👤<br/>Assignee"]
+    Clock["⏱️<br/>Clock<br/>(every 30 s)"]
+
+    Member --- UC1
+    Member --- UC2
+    Member --- UC3
+    Member --- UC4
+    Member --- UC5
+    Member --- UC6
+    Member --- UC7
+    Member --- UC8
+    Member --- UC9
+    Clock --- UC10
+
+    Assignee ---|"is assigned task"| UC6
+
+    UC3 -. "«include»" .-> UC11
+    UC4 -. "«include»" .-> UC11
+    UC6 -. "«include»" .-> UC11
+    UC7 -. "«include»" .-> UC11
+    UC9 -. "«include»" .-> UC11
+
+    classDef actor fill:none,stroke:none
+    class Member,Clock,Assignee actor
+```
+
+This diagram shows how users and the system interact with the Calendar & Task Bot. All use cases are handled by the bot; actors are outside the system. Discord is the platform every interaction runs through (commands, replies, @mentions, and reminder DMs), so it isn't shown as a separate actor.
+
+**Actors**
+- **Server Member** (primary): anyone in the server who uses the bot to view the calendar and manage events, tasks, and reminders.
+- **Assignee** (secondary): a server member who is assigned to a task. The bot @mentions them when the task is created.
+- **Clock** (primary, time-based): the reminder scheduler checks for due reminders every 30 seconds. No user starts this use case.
+
+**Use cases**
+- **View month calendar / View day schedule** (`/calendar`, `/day`): show a month grid or a day's hour slots in Pacific time.
+- **Add / Edit / Delete event** (`/event add|edit|delete`): manage calendar events by ID.
+- **Add & assign task** (`/task add`): create a task with a due date, time, and one to five assignees.
+- **Edit task / Complete or reopen task** (`/task edit`, `/task complete`): update a task or change its done status.
+- **Create reminder** (`/reminder add`): schedule a reminder for an existing task or event.
+- **Send due reminders**: DM the reminder's creator when it's due. Reminders for deleted events or completed tasks are skipped.
+- **Validate date & time** («include»): every use case that creates something with a date checks that the date is a real `YYYY-MM-DD` date and the time is a valid 24-hour `HH:MM`.
