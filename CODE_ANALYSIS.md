@@ -175,3 +175,41 @@ Fake interaction objects stand in for real slash commands. They are sent through
 - **Two commands running at once.** Both read and rewrite the same JSON file, so one save can overwrite the other.
 - **The ID-reuse and "PDT" bugs.** These were found by reading the code during the coupling analysis. Each should get its own unit test once fixed.
 - **The scheduler's 30-second repeat.** Only its first, immediate check is exercised.
+
+## Technical Debt and Code Smells (Hakan)
+
+**How I did it:** I read all the code in `src/`, looked for TODO notes, and used my ESLint results from Lab 1.
+
+**What I found:**
+
+1. **Copied code:** the 3 store files (calendar, task, reminder) have the same code. One fix has to be done 3 times.
+2. **Data can get erased:** if a JSON file breaks, the bot treats it as empty, and the next save wipes everything.
+3. **Unfinished permission checks:** 5 TODO notes were never finished, so anyone can edit or delete anyone's stuff.
+4. **Usernames instead of IDs:** we save usernames instead of user IDs, but people can change their usernames.
+5. **Unused code:** `getWelcomeMessage` is never used (ESLint found it).
+6. **Big files:** `taskCommand.js` (244 lines) and `eventCommand.js` (194 lines) do too many jobs.
+7. **No tests:** there is a test script but no tests.
+
+**Summary:** The biggest problems are #2 (losing data) and #3 (no permission checks). The easiest fixes are #1 (share the code) and #5 (delete unused code). Zad's coupling analysis above found some of the same problems (#1 and #5), which shows they're real.
+
+## Threat Model (Hakan)
+
+**How I did it:** I used the 4 threat model questions and STRIDE from class.
+
+**1. What are we working on?**
+Our Discord bot (`/calendar`, `/day`, `/event`, `/task`, `/reminder`). It saves data in JSON files, uses a secret token, and the code is public on GitHub.
+
+**2. What can go wrong? (STRIDE)**
+
+- **Spoofing:** if the token leaks, someone can pretend to be our bot. (This happened once and we reset it.)
+- **Tampering:** anyone can edit or delete other people's events and tasks.
+- **Repudiation:** nothing records who changed or deleted something.
+- **Info disclosure:** every server uses the same data files.
+- **Denial of service:** people can spam `/event add`, and a broken file makes all data look gone.
+- **Elevation of privilege:** normal members can delete anything, like an admin. A title with `@everyone` could ping the whole server.
+
+**3. What will we do?**
+Only let creators or mods edit/delete, save a server ID with each item, block `@everyone` pings, add spam limits and backups, record changes, and keep the token secret.
+
+**4. Did we do enough?**
+Not yet. These fixes are now user stories on our board (#34 and #35), and we should check again each sprint.
