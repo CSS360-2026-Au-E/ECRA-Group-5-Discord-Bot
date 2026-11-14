@@ -369,3 +369,83 @@ I think the bot would be more useful if users could assign priorities to tasks. 
 - Use a default priority when one is not specified.
 
 This feature would help server members identify important tasks and decide what to work on first. It would also make the bot more useful for managing multiple responsibilities.
+
+## Fuzzing (Cam)
+What I built
+
+tests/fuzz-calendar.js is a fuzzer written with fast-check. A unit test checks a few inputs I picked by hand. A fuzzer does the opposite: I write a rule that should always be true, and fast-check throws thousands of random inputs at the code to find one that breaks the rule. When it finds one, it shrinks it down to the smallest input that still fails. Run it with:
+
+bash
+npm install --save-dev fast-check   # once
+npm run fuzz
+
+It has to run through esbuild-runner (the same way npm test does), because the bot's code uses import. Plain node tests/fuzz-calendar.js does not work.
+
+What it fuzzes: my part of the bot, calendar.js, plus the /event add command and calendarStore.js, which depend on it. Like the smoke test, it sends fake interactions through the real interactionCreate handler and saves to a temporary folder, so the real data/ folder is never touched.
+
+The inputs: random text mixed with a list of values chosen to cause trouble: empty and whitespace-only text, emoji, @everyone and @here, Markdown like ```, impossible dates (2026-02-30, 0000-00-00), daylight saving dates, bad times (24:00, 9:5), and text longer than 2,000 characters. Dates cover every day from 2020 to 2035.
+
+The rules and results
+
+Tested on bot-task-5 at commit 7cd162c. Each rule gets between 500 and 50,000 random inputs. The whole run takes about 4 seconds.
+
+#	Rule	Result
+1	isValidDate never crashes, and any date it accepts reads back the same from toDate	Held
+2	normalizeTime never crashes and only returns a real HH:MM time or null	Held
+3	toDateTime(date, hour) gives back the hour that was asked for	Broken
+4	getHours gives 24 slots, each one hour after the last	Broken
+5	dayToText shows exactly the hours from from to to	Held
+6	getMonthGrid has 7-day weeks and every day of the month once, in order	Held
+7	/event add never crashes, replies exactly once, and only saves valid dates and times	Held
+8	/event add never saves an event with a blank title	Broken
+9	/event add replies fit in Discord's 2,000-character message limit	Broken
+10	/event add replies can't ping @everyone or @here	Broken
+11	Event IDs are never reused, even after deleting events	Broken
+
+6 of 11 rules were broken. The fuzzer exits with an error code when any rule breaks, so it is kept out of npm test on purpose. Otherwise the whole team's tests would fail until these bugs are fixed.
+
+What it found
+
+1. Daylight saving time breaks the hour slots (rules 3 and 4, in my own code).
+
+Spring forward. On the day the clocks jump ahead, 2 AM does not exist in Pacific time. toDateTime("2020-03-08", 2) returns 3 AM instead of an error. In getHours, the "2 AM" slot and the "3 AM" slot both start at 3 AM, so an event at 3 AM would match two slots.
+Fall back. On the day the clocks go back, 1 AM happens twice. getHours("2022-11-06") still returns 24 slots for a 25-hour day, and the "2 AM" slot starts two hours after the "1 AM" slot. The second 1 AM has no slot.
+Why I missed it. This only happens on 2 days a year, so my hand-written tests never hit it. The fuzzer found both days because it tries every date.
+
+2. A title of only spaces is saved as a blank title (rule 8). Discord's "required" check accepts a title like "   ". The command trims it and saves an event with an empty title. Smallest failing input: {"title":"","date":"2028-02-29","time":"9:05"}.
+
+3. Long input makes a reply Discord would reject (rule 9). A string option can be up to 6,000 characters, but a message can only be 2,000. There are two ways to trigger it:
+
+A long invalid date is repeated back inside the error message.
+A long description is saved, and then the "Event added!" confirmation is too long to send. The event exists, but the user would see a failure.
+
+4. The bot repeats @everyone and @here back to the channel (rule 10). Any text field is echoed in the reply, including an invalid date in the error message ({"date":"@everyone"}). If the bot has the Mention Everyone permission, this pings the whole server. Hakan's threat model predicted this under elevation of privilege. The fuzzer confirms it and shows it is not limited to titles.
+
+5. Event IDs are reused after a delete (rule 11). Smallest failing sequence: add, delete ID 1, add. The new event gets ID 1 again. Zad found this by reading the code during the coupling analysis. The fuzzer found it on its own, with no hint about where to look.
+
+What held up
+
+Date and time validation is solid. Across 10,000 random inputs, isValidDate and normalizeTime never crashed and never accepted a fake date or time. /event add never crashed and never saved an invalid date or time. The month grid was correct for every month from 1970 to 2100.
+
+Recommendations
+Handle daylight saving in calendar.js. Reject or clearly label the missing 2 AM hour, and build getHours by adding one hour at a time so the 23-hour and 25-hour days come out right.
+Reject blank titles after trimming, with the same kind of error reply as an invalid date.
+Limit the length of user text in replies, or set setMaxLength on the string options.
+Turn off mentions in replies with allowedMentions: { parse: [] }, so repeated text can never ping anyone.
+Stop reusing IDs, as already recommended in the coupling section.
+What the fuzzer does not cover
+Other commands. /task, /reminder, /event edit, and /event delete are not fuzzed yet. They share the same validation, so they likely share bugs 3 and 4.
+Real Discord. The interactions are fakes. Bugs 3 and 4 are based on Discord's documented limits and mention rules, not on a live server.
+Out-of-range numbers. Discord enforces the 0-23 and 1-12 limits on integer options before the bot sees them, so I did not fuzz those through the commands.
+
+## Unit Tests (Cam)
+
+I wrote five unit tests for calendar.js in tests/calendar.spec.js, using Mocha and Chai like the rest of the tests. Run them with npm test.
+
+Valid dates: isValidDate accepts real YYYY-MM-DD dates, including Feb 29 in a leap year. It rejects Feb 30, Feb 29 in a non-leap year, and other formats like 2026-11 and 11/05/2026.
+Time formatting: normalizeTime turns 9:05 into 09:05 and returns null for 24:00, 12:60, 3pm, and 9:5.
+Date plus hour: toDateTime builds the right Pacific time ("Thu, Nov 5, 2026 at 3 PM PST") and throws for hours outside 0-23 and for bad dates.
+Hour labels: hourLabel turns 0, 9, 12, and 15 into "12 AM", "9 AM", "12 PM", and "3 PM".
+Month grid: getMonthGrid lays out February 2026 as exactly four full weeks, and throws for month 13.
+
+Result: all 5 pass, which brings npm test to 23 passing. These tests check the normal cases and the obvious bad inputs. None of them caught the daylight saving bug, which is a good example of why the fuzzer was worth adding.
