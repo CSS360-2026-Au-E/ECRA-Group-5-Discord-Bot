@@ -213,3 +213,123 @@ Only let creators or mods edit/delete, save a server ID with each item, block `@
 
 **4. Did we do enough?**
 Not yet. These fixes are now user stories on our board (#34 and #35), and we should check again each sprint.
+
+## Cyclomatic Complexity (Ilakshi)
+
+### How we measured it
+
+Cyclomatic complexity (CC) counts the independent paths through a function: 1, plus 1 for each branch (`if`, `else if`, loops, `case`, `catch`, `&&`, `||`, `??`, `?.`, ternaries). Higher numbers mean more paths to test and more room for bugs.
+
+We measured every function in `src/` using ESLint's built-in `complexity` rule, with the limit set to 0 so every function is reported:
+
+```bash
+npx eslint src --rule '{"complexity": ["warn", 0]}'
+```
+
+We rated the results with the standard McCabe thresholds: **1–10** simple, **11–20** moderate, **21–50** complex, **50+** untestable.
+
+### Summary
+
+| Metric | Value |
+|---|---|
+| Functions analyzed | 115 |
+| Average CC (all functions) | 2.1 |
+| Average CC (named functions only) | 3.2 |
+| Highest CC | 21 (`handleEdit` in `taskCommand.js`) |
+| Functions above 10 | 2 |
+
+| CC range | Rating | Functions |
+|---|---|---|
+| 1 | Trivial | 77 |
+| 2–5 | Simple | 32 |
+| 6–10 | Simple | 4 |
+| 11–20 | Moderate | 1 |
+| 21+ | Complex | 1 |
+
+Most of the CC = 1 functions are arrow functions used to build slash command options. They lower the overall average, so we also report the average for named functions only.
+
+### Most complex functions
+
+| CC | Function | File |
+|---|---|---|
+| **21** | `handleEdit` | `src/helpers/taskCommand.js:145` |
+| **13** | reminder check callback (inside `startReminderScheduler`) | `src/reminders/reminderScheduler.js:13` |
+| 9 | `execute` | `src/helpers/reminderCommand.js:46` |
+| 9 | `handleAdd` | `src/helpers/taskCommand.js:79` |
+| 8 | `handleEdit` | `src/helpers/eventCommand.js:108` |
+| 6 | `execute` | `src/events/interactionCreate.js:7` |
+
+### By file
+
+| File | Functions | Total CC | Max CC |
+|---|---|---|---|
+| `helpers/taskCommand.js` | 24 | 59 | 21 |
+| `helpers/calendar.js` | 16 | 40 | 5 |
+| `helpers/eventCommand.js` | 22 | 39 | 8 |
+| `helpers/calendarStore.js` | 10 | 18 | 4 |
+| `reminders/reminderScheduler.js` | 3 | 16 | 13 |
+| `helpers/taskStore.js` | 9 | 16 | 4 |
+| `helpers/reminderCommand.js` | 7 | 15 | 9 |
+| `events/interactionCreate.js` | 2 | 7 | 6 |
+| `helpers/dayCommand.js` | 4 | 7 | 4 |
+| `helpers/loadEvents.js` | 2 | 6 | 5 |
+| `reminders/reminderStore.js` | 4 | 6 | 3 |
+| `events/guildMemberAdd.js` | 5 | 5 | 1 |
+| `helpers/calendarCommand.js` | 3 | 5 | 3 |
+| `events/ready.js` | 2 | 3 | 2 |
+| `helpers/loadFiles.js` | 2 | 2 | 1 |
+
+### Findings
+
+- **Overall, the codebase has low complexity.** 113 of 115 functions (98%) are in the simple range (CC ≤ 10). Keeping each command in its own file, with separate store files for data, keeps most functions small.
+- **`taskCommand.js` → `handleEdit` (CC 21) is the most complex function.** Every field a user can edit (title, due date, time, assignees) adds its own validation branches, so they all pile up in one function.
+- **The reminder scheduler callback (CC 13) is the second most complex function.** It loads data, skips invalid or already-sent reminders, handles deleted or completed items, sends the DM, and catches errors, all inside one loop.
+- **Command handlers are generally higher than helpers.** Most of their branches are input validation with early returns, such as invalid dates, past times, or missing IDs.
+
+### Recommendations
+
+1. **Split up `handleEdit`.** Move the date/time validation and assignee changes into separate helper functions. This should reduce the CC and bring it under 10, and each helper can be tested on its own.
+2. **Extract a `processReminder(reminder, tasks, events)` function** from the scheduler loop. The loop then just calls it for each reminder, and the skip/send logic can be tested without a timer.
+3. **Share validation between commands.** `taskCommand.js`, `eventCommand.js`, and `reminderCommand.js` all validate dates and times. A shared helper would reduce both complexity and duplicated code.
+4. **Add a complexity limit to the ESLint config** (for example, `complexity: ["warn", 10]`) so new code that gets too complex is flagged automatically.
+
+## Hosting & Continuous Deployment (Ilakshi)
+
+### How we did it
+
+During development, we ran the bot in GitHub Codespaces with `npm start`. That doesn't work for continuous service:
+
+- Codespaces shuts down after a period of inactivity, which takes the bot offline.
+- Each teammate's Codespace had its own `data/` folder, so tasks, events and reminders weren't shared, and were lost when a Codespace was rebuilt.
+- Running the bot solely on GitHub Actions would mean chaining jobs that stop after 6 hours, with downtime between runs and no files kept between them. GitHub's terms also don't allow using Actions to host a service.
+
+We moved the bot to a dedicated server on **AWS Lightsail** so it stays online 24/7 with saved storage.
+
+### Setup
+|  |  |
+|---|---|
+| Service | AWS Lightsail |
+| Region | Ohio (`us-east-2`) |
+| OS | Ubuntu 24.04 LTS |
+| Plan | 512 MB RAM, 2 vCPUs, 20 GB SSD (1 GB swap added) |
+| Networking | Static IP; firewall allows SSH (port 22) only |
+
+The bot only makes outgoing connections to Discord, so no incoming ports are open apart from SSH for administration. The bot runs as a **Docker container** built from the repo's `Dockerfile`.
+
+Previously, each team member ran their own copy of the bot from their Codespace. We now have one bot that runs on the `main` branch, and only use our individual bots to test new features.
+
+### Updating the bot
+
+The server has an update script, `~/update-bot.sh`, that pulls the latest code from `main`, rebuilds the image, replaces the running container, and cleans up old images. The bot is offline for only a few seconds during an update, and the data volume is untouched.
+
+### Testing
+
+To ensure everything worked as expected, we tested that: 
+- Slash commands (`/calendar`, `/task add`, `/task edit`) respond from the hosted bot.
+- After a full server reboot, the bot came back online on its own, and a task created before the reboot could still be edited. This confirms that both the restart policy and the persistent storage work.
+
+
+### Next steps
+
+- **Continuous deployment:** a GitHub Actions workflow will SSH into the server and run `~/update-bot.sh` on every merge to `main`, so updates no longer need to be done by hand.
+- **Data across servers:** all Discord servers the bot is in share the same data files. Supporting multiple servers properly would mean storing a server ID with each item.
