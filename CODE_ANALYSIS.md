@@ -370,7 +370,7 @@ I think the bot would be more useful if users could assign priorities to tasks. 
 
 This feature would help server members identify important tasks and decide what to work on first. It would also make the bot more useful for managing multiple responsibilities.
 
-Fuzzing (Cam)
+## Fuzzing (Cam)
 What I built
 
 tests/fuzz-calendar.js is a fuzzer written with fast-check. A unit test checks a few inputs I picked by hand. A fuzzer does the opposite: I write a rule that should always be true, and fast-check throws thousands of random inputs at the code to find one that breaks the rule. When it finds one, it shrinks it down to the smallest input that still fails. Run it with:
@@ -438,7 +438,7 @@ Other commands. /task, /reminder, /event edit, and /event delete are not fuzzed 
 Real Discord. The interactions are fakes. Bugs 3 and 4 are based on Discord's documented limits and mention rules, not on a live server.
 Out-of-range numbers. Discord enforces the 0-23 and 1-12 limits on integer options before the bot sees them, so I did not fuzz those through the commands.
 
-Unit Tests (Cam)
+## Unit Tests (Cam)
 
 I wrote five unit tests for calendar.js in tests/calendar.spec.js, using Mocha and Chai like the rest of the tests. Run them with npm test.
 
