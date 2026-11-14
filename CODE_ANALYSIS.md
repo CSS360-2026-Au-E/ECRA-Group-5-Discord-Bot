@@ -293,7 +293,7 @@ Most of the CC = 1 functions are arrow functions used to build slash command opt
 3. **Share validation between commands.** `taskCommand.js`, `eventCommand.js`, and `reminderCommand.js` all validate dates and times. A shared helper would reduce both complexity and duplicated code.
 4. **Add a complexity limit to the ESLint config** (for example, `complexity: ["warn", 10]`) so new code that gets too complex is flagged automatically.
 
-## Implementing Continuous Integration (Ilakshi)
+## Hosting & Continuous Deployment (Ilakshi)
 
 ### How we did it
 
