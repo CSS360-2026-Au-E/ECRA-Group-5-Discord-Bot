@@ -333,3 +333,39 @@ To ensure everything worked as expected, we tested that:
 
 - **Continuous deployment:** a GitHub Actions workflow will SSH into the server and run `~/update-bot.sh` on every merge to `main`, so updates no longer need to be done by hand.
 - **Data across servers:** all Discord servers the bot is in share the same data files. Supporting multiple servers properly would mean storing a server ID with each item.
+---
+
+## Unit Tests (Sarah)
+
+### What I tested
+
+I wrote five unit tests for `taskStore.js` using Mocha and Chai. My tests focus on the individual functions responsible for saving, retrieving, and updating task data.
+
+The tests cover:
+
+1. **Looking up a nonexistent task:** Verified that `getTaskById()` returns `undefined` when a task ID cannot be found.
+2. **Updating a nonexistent task:** Verified that `updateTask()` returns `null` and does not accidentally modify another task.
+3. **Generating task IDs:** Added multiple tasks and checked that each receives a unique ID.
+4. **Saving and loading tasks:** Verified that tasks saved to the JSON file can be loaded with their original information.
+5. **Handling invalid JSON:** Verified that `getTasks()` returns an empty array when the tasks file contains invalid JSON instead of crashing.
+
+### Results and observations
+
+All five unit tests passed.
+
+One limitation I noticed while reviewing the code is that `getTasks()` catches errors when the JSON file cannot be parsed and returns an empty array. This prevents the bot from crashing, but it could also hide corrupted task data. The bot would behave as if there are no saved tasks, even if task information was previously stored in the file. Although this is unlikely during normal use, the code does not warn the user or attempt to recover the data if it happens.
+
+## Proposed Feature (Sarah)
+
+### Idea: Add task priorities
+
+I think the bot would be more useful if users could assign priorities to tasks. When a server has several tasks, it can be difficult to tell which ones need attention first. Adding priority levels would help users organize their responsibilities.
+
+### Proposed scope
+
+- Allow users to assign a priority of High, Medium, or Low when creating or editing a task.
+- Display the priority when users view a task.
+- Allow users to change a task's priority.
+- Use a default priority when one is not specified.
+
+This feature would help server members identify important tasks and decide what to work on first. It would also make the bot more useful for managing multiple responsibilities.
