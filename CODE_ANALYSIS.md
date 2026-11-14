@@ -214,7 +214,7 @@ Only let creators or mods edit/delete, save a server ID with each item, block `@
 **4. Did we do enough?**
 Not yet. These fixes are now user stories on our board (#34 and #35), and we should check again each sprint.
 
-## Cyclomatic Complexity Report (Ilakshi)
+## Cyclomatic Complexity (Ilakshi)
 
 ### How we measured it
 
