@@ -1,5 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import * as cal from "./calendar";
+import { getCalendarEvents } from "./calendarStore";
+import { getTasks } from "./taskStore";
 
 // /day                         -> today's hours
 // /day date:2026-11-05         -> that day's hours
@@ -31,6 +33,6 @@ export const dayCommand = {
     const from = interaction.options.getInteger("from") ?? 0;
     const to = interaction.options.getInteger("to") ?? 23;
 
-    await interaction.reply(cal.dayToText(date, from, to));
+    await interaction.reply(cal.dayToText(date, from, to, getCalendarEvents(), getTasks()));
   },
 };

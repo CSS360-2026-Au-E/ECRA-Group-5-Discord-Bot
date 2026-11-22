@@ -4,12 +4,14 @@ import {
   addCalendarEvent,
   deleteCalendarEvent,
   getCalendarEventById,
+  getCalendarEvents,
   updateCalendarEvent,
 } from "./calendarStore";
 
 // /event add title:Team meeting date:2026-10-30 time:15:00 location:Room 204 description:Sprint planning
 // /event edit id:3 time:16:00 location:Library
 // /event delete id:3
+// /event list
 export const eventCommand = {
   data: new SlashCommandBuilder()
     .setName("event")
@@ -54,6 +56,9 @@ export const eventCommand = {
         .addIntegerOption((o) =>
           o.setName("id").setDescription("Event ID, shown when the event was added").setRequired(true)
         )
+    )
+    .addSubcommand((sub) =>
+      sub.setName("list").setDescription("Show upcoming events and their IDs")
     ),
 
   async execute(interaction) {
@@ -64,6 +69,8 @@ export const eventCommand = {
         return handleEdit(interaction);
       case "delete":
         return handleDelete(interaction);
+      case "list":
+        return handleList(interaction);
     }
   },
 };
@@ -172,6 +179,21 @@ async function handleDelete(interaction) {
     return interaction.reply({ content: `There is no event with ID ${id}.`, ephemeral: true });
   }
   return interaction.reply(`🗑️ **Event deleted:** ${removed.title} (ID ${removed.id})`);
+}
+
+// /event list
+// Shows up to 15 upcoming events, soonest first, so nobody has to remember IDs.
+async function handleList(interaction) {
+  const upcoming = cal.upcomingEvents(getCalendarEvents());
+  if (upcoming.length === 0) {
+    return interaction.reply("📭 No upcoming events. Add one with /event add.");
+  }
+  const lines = upcoming.slice(0, 15).map((e) => {
+    const day = cal.toDate(e.date).toFormat("ccc, LLL d");
+    return `**ID ${e.id}** · ${day} at ${e.time} · ${e.title}`;
+  });
+  const more = upcoming.length > 15 ? `\n…and ${upcoming.length - 15} more` : "";
+  return interaction.reply(`📅 **Upcoming events**\n${lines.join("\n")}${more}`);
 }
 
 // The text of an optional string option, trimmed. undefined if left blank.

@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 import * as cal from "./calendar";
+import { getCalendarEvents } from "./calendarStore";
 
 // /calendar            -> shows this month
 // /calendar month:12   -> shows December of this year
@@ -28,6 +29,6 @@ export const calendarCommand = {
     const month = interaction.options.getInteger("month") ?? current.month;
     const year = interaction.options.getInteger("year") ?? current.year;
 
-    await interaction.reply(cal.monthToText(year, month));
+    await interaction.reply(cal.monthToText(year, month, getCalendarEvents()));
   },
 };

@@ -81,7 +81,8 @@ export function getHours(dateStr) {
 // A day's hour slots as text, ready to send in a Discord message.
 // The current hour is marked with ◀ when the day is today.
 // fromHour/toHour (0-23) limit which hours are shown.
-export function dayToText(dateStr, fromHour = 0, toHour = 23) {
+// events and tasks (optional) are shown next to the hour they start or are due.
+export function dayToText(dateStr, fromHour = 0, toHour = 23, events = [], tasks = []) {
   if (fromHour > toHour) {
     throw new Error("The start hour must be before the end hour.");
   }
@@ -93,7 +94,15 @@ export function dayToText(dateStr, fromHour = 0, toHour = 23) {
     .filter((slot) => slot.hour >= fromHour && slot.hour <= toHour)
     .map((slot) => {
       const mark = isToday && slot.hour === t.hour ? "  ◀ now" : "";
-      return `${slot.label.padStart(5)} |${mark}`;
+      const here = [
+        ...eventsInHour(events, dateStr, slot.hour).map(
+          (e) => `${e.time} ${e.title} (Event ${e.id})`
+        ),
+        ...tasksInHour(tasks, dateStr, slot.hour).map(
+          (t) => `${t.time} ${t.done ? "✅" : "📝"} Task: ${t.title} (Task ${t.id})`
+        ),
+      ].join("; ");
+      return `${slot.label.padStart(5)} |${here ? " " + here : ""}${mark}`;
     });
 
   return `**${formatDate(day)}** (${day.toFormat("ZZZZ")})\n\`\`\`\n${lines.join("\n")}\n\`\`\``;
@@ -123,8 +132,9 @@ export function getMonthGrid(year, month) {
 }
 
 // A month as text, ready to send in a Discord message.
-// Today's date is marked with *.
-export function monthToText(year, month) {
+// Today's date is marked with *. Days with an event are marked with •.
+// events (optional) is the list of saved events.
+export function monthToText(year, month, events = []) {
   const first = DateTime.fromObject({ year, month, day: 1 }, { zone: ZONE });
   const t = now();
   const isThisMonth = t.year === year && t.month === month;
@@ -135,14 +145,41 @@ export function monthToText(year, month) {
       week
         .map((d) => {
           if (d === null) return "    ";
-          const mark = isThisMonth && d === t.day ? "*" : " ";
+          const dateStr = first.set({ day: d }).toISODate();
+          const hasEvent = events.some((e) => e.date === dateStr);
+          const mark = isThisMonth && d === t.day ? "*" : hasEvent ? "•" : " ";
           return String(d).padStart(3) + mark;
         })
         .join("")
         .trimEnd()
     );
   }
-  return `**${first.toFormat("LLLL yyyy")}** (Pacific time)\n\`\`\`\n${lines.join("\n")}\n\`\`\``;
+  const key = events.length ? "\n* = today   • = has an event" : "";
+  return `**${first.toFormat("LLLL yyyy")}** (Pacific time)\n\`\`\`\n${lines.join("\n")}${key}\n\`\`\``;
+}
+
+// ---------- Events ----------
+
+// The events on one date that start in a given hour, earliest first.
+export function eventsInHour(events, dateStr, hour) {
+  return events
+    .filter((e) => e.date === dateStr && Number(e.time.split(":")[0]) === hour)
+    .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+// The tasks due on one date in a given hour, earliest first.
+export function tasksInHour(tasks, dateStr, hour) {
+  return tasks
+    .filter((t) => t.due === dateStr && Number(t.time.split(":")[0]) === hour)
+    .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+// Events from today onward, soonest first.
+export function upcomingEvents(events) {
+  const todayStr = today();
+  return events
+    .filter((e) => e.date >= todayStr)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 }
 
 // ---------- Times ----------
