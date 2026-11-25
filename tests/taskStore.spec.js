@@ -1,4 +1,3 @@
-
 const { expect } = require("chai");
 const fs = require("fs");
 const os = require("os");
@@ -26,6 +25,13 @@ describe("Task store unit tests", function () {
     const dataDir = path.join(tmpDir, "data");
     fs.mkdirSync(dataDir, { recursive: true });
     fs.writeFileSync(path.join(dataDir, "tasks.json"), "[]");
+  });
+
+  it("returns an empty list when the tasks file does not exist", () => {
+    const tasksFile = path.join(tmpDir, "data", "tasks.json");
+    fs.unlinkSync(tasksFile);
+
+    expect(taskStore.getTasks()).to.deep.equal([]);
   });
 
   it("returns undefined when looking up a task that does not exist", () => {
@@ -85,10 +91,52 @@ describe("Task store unit tests", function () {
     expect(loadedTasks[0].id).to.equal(1);
   });
 
-  it("returns an empty list when the tasks file contains invalid JSON", () => {
+  it("throws a TaskDataError when the tasks file contains invalid JSON", () => {
     const tasksFile = path.join(tmpDir, "data", "tasks.json");
     fs.writeFileSync(tasksFile, "{ invalid json");
 
-    expect(taskStore.getTasks()).to.deep.equal([]);
+    expect(() => taskStore.getTasks())
+      .to.throw(taskStore.TaskDataError)
+      .with.property("message")
+      .that.includes("corrupted");
+  });
+
+  it("does not overwrite corrupted task data when adding a task", () => {
+    const tasksFile = path.join(tmpDir, "data", "tasks.json");
+    const corruptedData = "{ invalid json";
+    fs.writeFileSync(tasksFile, corruptedData);
+
+    expect(() =>
+      taskStore.addTask({
+        title: "New task",
+        due: "2027-06-15",
+        time: "17:00",
+        assigneeIds: ["user-1"],
+        createdBy: "tester",
+      })
+    ).to.throw(taskStore.TaskDataError);
+
+    expect(fs.readFileSync(tasksFile, "utf8")).to.equal(corruptedData);
+  });
+
+  it("does not overwrite corrupted task data when updating a task", () => {
+    const tasksFile = path.join(tmpDir, "data", "tasks.json");
+    const corruptedData = "{ invalid json";
+    fs.writeFileSync(tasksFile, corruptedData);
+
+    expect(() => taskStore.updateTask(1, { title: "Updated task" }))
+      .to.throw(taskStore.TaskDataError);
+
+    expect(fs.readFileSync(tasksFile, "utf8")).to.equal(corruptedData);
+  });
+
+  it("throws a TaskDataError when the tasks file contains a non-array JSON value", () => {
+    const tasksFile = path.join(tmpDir, "data", "tasks.json");
+    fs.writeFileSync(tasksFile, '{"task": "Finish report"}');
+
+    expect(() => taskStore.getTasks())
+      .to.throw(taskStore.TaskDataError)
+      .with.property("message")
+      .that.includes("invalid format");
   });
 });
