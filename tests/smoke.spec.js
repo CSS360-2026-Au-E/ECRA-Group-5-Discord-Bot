@@ -190,6 +190,58 @@ describe("Smoke test: core bot features", function () {
     expect(readJson("tasks.json")[0].assigneeIds).to.deep.equal([assignee.id, assignee2.id]);
   });
 
+  it("/task edit changes the due date and time", async () => {
+    const newDue = `${nextYear}-06-16`;
+
+    const reply = textOf(
+      await run("task", "edit", { id: 1, due: newDue, time: "18:30" })
+    );
+
+    expect(reply).to.include("Task updated");
+    expect(readJson("tasks.json")[0]).to.include({
+      due: newDue,
+      time: "18:30",
+    });
+  });
+
+  it("/task edit rejects invalid dates and times without changing the task", async () => {
+    const originalTask = { ...readJson("tasks.json")[0] };
+
+    const badDate = await run("task", "edit", {
+      id: 1,
+      due: "2026-02-30",
+    });
+    expect(badDate.ephemeral).to.equal(true);
+    expect(readJson("tasks.json")[0]).to.deep.equal(originalTask);
+
+    const badTime = await run("task", "edit", {
+      id: 1,
+      time: "25:99",
+    });
+    expect(badTime.ephemeral).to.equal(true);
+    expect(readJson("tasks.json")[0]).to.deep.equal(originalTask);
+  });
+
+  it("/task edit removes an assignee", async () => {
+    const reply = textOf(
+      await run("task", "edit", { id: 1, remove_assignee: assignee2 })
+    );
+
+    expect(reply).to.include("Task updated");
+    expect(readJson("tasks.json")[0].assigneeIds).to.deep.equal([assignee.id]);
+  });
+
+  it("/task edit prevents removing the last assignee", async () => {
+    const reply = await run("task", "edit", {
+      id: 1,
+      remove_assignee: assignee,
+    });
+
+    expect(reply.ephemeral).to.equal(true);
+    expect(textOf(reply)).to.include("at least one assignee");
+    expect(readJson("tasks.json")[0].assigneeIds).to.deep.equal([assignee.id]);
+  });
+
   it("/task complete marks a task done and undo reopens it", async () => {
     expect(textOf(await run("task", "complete", { id: 1 }))).to.include("Task complete");
     expect(readJson("tasks.json")[0].done).to.equal(true);

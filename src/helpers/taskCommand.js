@@ -146,8 +146,12 @@ async function handleComplete(interaction) {
 async function handleEdit(interaction) {
   const id = interaction.options.getInteger("id");
   const task = getTaskById(id);
+
   if (!task) {
-    return interaction.reply({ content: `There is no task with ID ${id}.`, ephemeral: true });
+    return interaction.reply({
+      content: `There is no task with ID ${id}.`,
+      ephemeral: true,
+    });
   }
 
   // TODO: permission check. Only an assignee, the creator, or a moderator
@@ -159,51 +163,23 @@ async function handleEdit(interaction) {
   const title = interaction.options.getString("title")?.trim();
   if (title) changes.title = title;
 
-  const due = interaction.options.getString("due")?.trim();
-  if (due) {
-    if (!cal.isValidDate(due)) {
-      return interaction.reply({
-        content: `"${due}" is not a valid date. Use YYYY-MM-DD, e.g. 2026-11-03.`,
-        ephemeral: true,
-      });
-    }
-    changes.due = due;
+  const dateTimeResult = getDateTimeChanges(interaction);
+  if (dateTimeResult.error) {
+    return interaction.reply({
+      content: dateTimeResult.error,
+      ephemeral: true,
+    });
   }
+  Object.assign(changes, dateTimeResult.changes);
 
-  const timeText = interaction.options.getString("time")?.trim();
-  if (timeText) {
-    const time = cal.normalizeTime(timeText);
-    if (!time) {
-      return interaction.reply({
-        content: "That is not a valid time. Use 24-hour HH:MM, e.g. 17:00.",
-        ephemeral: true,
-      });
-    }
-    changes.time = time;
+  const assigneeResult = getAssigneeChanges(interaction, task);
+  if (assigneeResult.error) {
+    return interaction.reply({
+      content: assigneeResult.error,
+      ephemeral: true,
+    });
   }
-
-  // Assignees: start from the current list, then add and remove.
-  const added = interaction.options.getUser("add_assignee");
-  const removed = interaction.options.getUser("remove_assignee");
-  if (added || removed) {
-    let assigneeIds = [...task.assigneeIds];
-    if (added && !assigneeIds.includes(added.id)) assigneeIds.push(added.id);
-    if (removed) assigneeIds = assigneeIds.filter((userId) => userId !== removed.id);
-
-    if (assigneeIds.length === 0) {
-      return interaction.reply({
-        content: "A task needs at least one assignee. Add someone else before removing the last person.",
-        ephemeral: true,
-      });
-    }
-    if (assigneeIds.length > MAX_ASSIGNEES) {
-      return interaction.reply({
-        content: `A task can have at most ${MAX_ASSIGNEES} assignees.`,
-        ephemeral: true,
-      });
-    }
-    changes.assigneeIds = assigneeIds;
-  }
+  Object.assign(changes, assigneeResult.changes);
 
   const changedFields = Object.keys(changes);
   if (changedFields.length === 0) {
@@ -225,6 +201,68 @@ async function handleEdit(interaction) {
   return interaction.reply(
     `✏️ **Task updated!** Changed: ${changedFields.join(", ")}\n${taskDetails(updated)}${warning}`
   );
+}
+
+// Validate and collect any due-date or time changes.
+function getDateTimeChanges(interaction) {
+  const changes = {};
+
+  const due = interaction.options.getString("due")?.trim();
+  if (due) {
+    if (!cal.isValidDate(due)) {
+      return {
+        error: `"${due}" is not a valid date. Use YYYY-MM-DD, e.g. 2026-11-03.`,
+      };
+    }
+    changes.due = due;
+  }
+
+  const timeText = interaction.options.getString("time")?.trim();
+  if (timeText) {
+    const time = cal.normalizeTime(timeText);
+    if (!time) {
+      return {
+        error: "That is not a valid time. Use 24-hour HH:MM, e.g. 17:00.",
+      };
+    }
+    changes.time = time;
+  }
+
+  return { changes };
+}
+
+// Collect and validate any assignee additions or removals.
+function getAssigneeChanges(interaction, task) {
+  const added = interaction.options.getUser("add_assignee");
+  const removed = interaction.options.getUser("remove_assignee");
+
+  if (!added && !removed) {
+    return { changes: {} };
+  }
+
+  let assigneeIds = [...task.assigneeIds];
+
+  if (added && !assigneeIds.includes(added.id)) {
+    assigneeIds.push(added.id);
+  }
+
+  if (removed) {
+    assigneeIds = assigneeIds.filter((userId) => userId !== removed.id);
+  }
+
+  if (assigneeIds.length === 0) {
+    return {
+      error: "A task needs at least one assignee. Add someone else before removing the last person.",
+    };
+  }
+
+  if (assigneeIds.length > MAX_ASSIGNEES) {
+    return {
+      error: `A task can have at most ${MAX_ASSIGNEES} assignees.`,
+    };
+  }
+
+  return { changes: { assigneeIds } };
 }
 
 // The due date and time of a task as a Pacific-time Luxon date
