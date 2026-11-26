@@ -4,7 +4,7 @@
 // commands and go through the real interactionCreate handler, so command
 // routing, validation, the JSON stores and the replies are all exercised.
 //
-// Run with:  npm test
+// Run with: npm test
 //
 // The stores save to <current working directory>/data, so the test switches
 // into a temporary folder BEFORE loading any bot code. Your real data/ folder
@@ -275,7 +275,12 @@ describe("Smoke test: core bot features", function () {
     expect(client.registered.map((c) => c.name)).to.include.members(["calendar", "task", "reminder"]);
     expect(client.dms).to.have.lengthOf(1);
     expect(client.dms[0]).to.include({ to: assignee.id });
-    expect(client.dms[0].text).to.include("Reminder").and.include("Write report");
+
+    expect(client.dms[0].text)
+      .to.include("Reminder: Write report")
+      .and.include("Type:** task")
+      .and.include(`Jun 15, ${nextYear} at 5 PM`)
+      .and.include("ID:** 1");
 
     const due = readJson("reminders.json").find((r) => r.createdBy === assignee.id);
     expect(due.sent).to.equal(true);

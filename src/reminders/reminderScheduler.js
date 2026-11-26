@@ -41,9 +41,18 @@ export function startReminderScheduler(client) {
 
         try {
           const user = await client.users.fetch(reminder.createdBy);
+
+          const itemDate = reminder.type === "task" ? item.due : item.date;
+          const itemDateTime = cal.toDate(itemDate).set({
+            hour: Number(item.time.split(":")[0]),
+            minute: Number(item.time.split(":")[1]),
+          });
+
           await user.send(
-            `⏰ **Reminder:** ${reminder.title}\n` +
-              `Your ${reminder.type} (ID ${reminder.itemId}) is due for a reminder now.`
+            `⏰ **Reminder: ${item.title}**\n` +
+              `**Type:** ${reminder.type}\n` +
+              `**Scheduled for:** ${cal.formatTime(itemDateTime)}\n` +
+              `**ID:** ${reminder.itemId}`
           );
 
           reminder.sent = true;
