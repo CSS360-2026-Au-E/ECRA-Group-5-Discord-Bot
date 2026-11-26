@@ -1,4 +1,3 @@
-
 // Smoke test: drives every major feature of the bot end to end, without
 // connecting to Discord. Fake "interaction" objects stand in for slash
 // commands and go through the real interactionCreate handler, so command
@@ -331,7 +330,7 @@ describe("Smoke test: core bot features", function () {
     expect(client.dms[0].text)
       .to.include("Reminder: Write report")
       .and.include("Type:** task")
-      .and.include(`Jun 15, ${nextYear} at 5 PM`)
+      .and.include(`Jun 16, ${nextYear} at 6:30 PM`)
       .and.include("ID:** 1");
 
     const due = readJson("reminders.json").find((r) => r.createdBy === assignee.id);
