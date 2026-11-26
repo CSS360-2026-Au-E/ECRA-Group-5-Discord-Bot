@@ -1,5 +1,5 @@
 // Unit tests for src/helpers/calendar.js (dates, hours and months, Pacific time).
-// Run with:  npm test
+// Run with: npm test
 
 // Written with require() (CommonJS) so esbuild-runner handles the import,
 // same as the other spec files.
@@ -34,7 +34,7 @@ describe("Calendar unit tests", function () {
     const dt = cal.toDateTime("2026-11-05", 15);
     expect(dt.hour).to.equal(15);
     expect(dt.zoneName).to.equal("America/Los_Angeles");
-    expect(cal.formatTime(dt)).to.equal("Thu, Nov 5, 2026 at 3 PM PST");
+    expect(cal.formatTime(dt)).to.equal("Thu, Nov 5, 2026 at 3:00 PM PST");
 
     expect(() => cal.toDateTime("2026-11-05", 24)).to.throw("0 to 23");
     expect(() => cal.toDateTime("2026-11-05", -1)).to.throw("0 to 23");

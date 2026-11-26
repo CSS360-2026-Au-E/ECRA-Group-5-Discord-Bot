@@ -2,7 +2,7 @@
 // The calendar itself: dates, days, months, and hours, all in Pacific time.
 // Other parts of the bot (adding events, tasks, reminders) build on these.
 //
-// Requires Luxon:  npm install luxon
+// Requires Luxon: npm install luxon
 
 import { DateTime } from "luxon";
 
@@ -50,9 +50,9 @@ export function toDateTime(dateStr, hour) {
 
 // ---------- Display ----------
 
-// "Thu, Nov 5, 2026 at 3 PM PST"
+// "Thu, Nov 5, 2026 at 3:00 PM PST"
 export function formatTime(dt) {
-  return dt.setZone(ZONE).toFormat("ccc, LLL d, yyyy 'at' h a ZZZZ");
+  return dt.setZone(ZONE).toFormat("ccc, LLL d, yyyy 'at' h:mm a ZZZZ");
 }
 
 // "Thursday, November 5, 2026"
