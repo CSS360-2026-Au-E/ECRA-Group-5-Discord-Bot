@@ -1,3 +1,4 @@
+
 // Smoke test: drives every major feature of the bot end to end, without
 // connecting to Discord. Fake "interaction" objects stand in for slash
 // commands and go through the real interactionCreate handler, so command
@@ -195,6 +196,38 @@ describe("Smoke test: core bot features", function () {
 
     expect(textOf(await run("task", "complete", { id: 1, undo: true }))).to.include("Task reopened");
     expect(readJson("tasks.json")[0].done).to.equal(false);
+  });
+
+  it("notifies the user when saved task data is corrupted without overwriting it", async () => {
+    const tasksFile = path.join(tmpDir, "data", "tasks.json");
+    const originalData = fs.readFileSync(tasksFile, "utf8");
+    const corruptedData = "{ invalid json";
+
+    fs.writeFileSync(tasksFile, corruptedData);
+
+    // Hide the expected error log from the centralized interaction handler.
+    const originalError = console.error;
+    console.error = () => {};
+
+    try {
+      const reply = await run("task", "add", {
+        title: "New task",
+        due: futureDate,
+        time: "17:00",
+        assignee,
+      });
+
+      expect(reply.ephemeral).to.equal(true);
+      expect(textOf(reply)).to.include("corrupted");
+      expect(textOf(reply)).to.include("not been overwritten");
+
+      expect(fs.readFileSync(tasksFile, "utf8")).to.equal(corruptedData);
+    } finally {
+      console.error = originalError;
+
+      // Restore the original task data for the remaining smoke tests.
+      fs.writeFileSync(tasksFile, originalData);
+    }
   });
 
   // ---------- Reminders ----------
