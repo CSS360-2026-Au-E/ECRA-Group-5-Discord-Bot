@@ -29,6 +29,6 @@ export const calendarCommand = {
     const month = interaction.options.getInteger("month") ?? current.month;
     const year = interaction.options.getInteger("year") ?? current.year;
 
-    await interaction.reply(cal.monthToText(year, month, getCalendarEvents()));
+    await interaction.reply(cal.monthToText(year, month, getCalendarEvents(interaction.guildId)));
   },
 };

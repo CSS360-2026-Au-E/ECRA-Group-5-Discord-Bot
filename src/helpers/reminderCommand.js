@@ -67,8 +67,9 @@ export const reminderCommand = {
       });
     }
 
+    // Only look at this server's tasks/events.
     const items =
-      type === "task" ? getTasks() : getCalendarEvents();
+      type === "task" ? getTasks(interaction.guildId) : getCalendarEvents(interaction.guildId);
     const item = items.find((entry) => entry.id === itemId);
 
     if (!item) {
@@ -96,6 +97,7 @@ export const reminderCommand = {
     }
 
     const reminder = addReminder({
+      guildId: interaction.guildId,
       type,
       itemId,
       title: item.title,

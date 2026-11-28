@@ -28,6 +28,7 @@ function fakeInteraction(commandName, subcommand, options = {}, actor = {}) {
     commandName,
     user: actor.user ?? { id: "100000000000000001", username: "smoke-tester" },
     memberPermissions: actor.memberPermissions ?? null,
+    guildId: actor.guildId ?? "guild-1",
     replies: [],
     replied: false,
     deferred: false,
@@ -99,6 +100,8 @@ describe("Smoke test: core bot features", function () {
     memberPermissions: { has: () => true },
   };
   const asAssignee = { user: { id: assignee.id, username: "assignee" } };
+  // The same user, but running commands in a different server.
+  const otherServer = { guildId: "guild-2" };
 
 
   // Send a slash command through the real handler; return its last reply.
@@ -199,6 +202,16 @@ describe("Smoke test: core bot features", function () {
     const reply = textOf(await run("event", "edit", { id: 1, location: "UW1-031" }, moderator));
     expect(reply).to.include("Event updated");
   });
+    it("keeps events separate between servers", async () => {
+    expect(readJson("events.json")[0]).to.include({ guildId: "guild-1" });
+
+    const list = textOf(await run("event", "list", {}, otherServer));
+    expect(list).to.include("No upcoming events");
+
+    const edit = await run("event", "edit", { id: 1, title: "Other server" }, otherServer);
+    expect(edit.ephemeral).to.equal(true);
+    expect(textOf(edit)).to.include("There is no event with ID 1");
+  });
 
   // ---------- Tasks ----------
 
@@ -288,6 +301,15 @@ describe("Smoke test: core bot features", function () {
     expect(textOf(complete)).to.include("don't have permission");
 
     expect(readJson("tasks.json")).to.deep.equal(before);
+  });
+
+  it("keeps tasks separate between servers", async () => {
+    expect(readJson("tasks.json")[0]).to.include({ guildId: "guild-1" });
+
+    const complete = await run("task", "complete", { id: 1 }, otherServer);
+    expect(complete.ephemeral).to.equal(true);
+    expect(textOf(complete)).to.include("There is no task with ID 1");
+    expect(readJson("tasks.json")[0].done).to.equal(false);
   });
 
   it("/task complete works for an assignee who didn't create the task", async () => {

@@ -13,9 +13,10 @@ export class TaskDataError extends Error {
   }
 }
 
-// Read all saved tasks (returns [] if there are none yet)
-export function getTasks() {
-  let fileContents;
+// Read saved tasks (returns [] if there are none yet).
+// Pass a Discord server ID (guildId) to get only that server's tasks.
+// Leave it out to get every server's tasks (used by the reminder scheduler).
+export function getTasks(guildId) {  let fileContents;
 
   try {
     fileContents = fs.readFileSync(TASKS_FILE, "utf8");
@@ -43,7 +44,7 @@ export function getTasks() {
     );
   }
 
-  return tasks;
+  return guildId === undefined ? tasks : tasks.filter((t) => t.guildId === guildId);
 }
 
 // Save the full list of tasks
@@ -55,10 +56,11 @@ export function saveTasks(tasks) {
 // Add one new task and give it the next ID number
 // createdBy is the creator's username (for display). createdById is their
 // Discord user ID, which never changes, so permission checks use it.
-export function addTask({ title, due, time, assigneeIds, createdBy, createdById }) {  const tasks = getTasks();
+export function addTask({ guildId, title, due, time, assigneeIds, createdBy, createdById }) {  const tasks = getTasks();
   const nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
   const newTask = {
     id: nextId,
+    guildId: guildId ?? null,
     title,
     due,
     time,
@@ -71,9 +73,10 @@ export function addTask({ title, due, time, assigneeIds, createdBy, createdById 
   return newTask;
 }
 
-// Find one task by its ID (returns undefined when there is none)
-export function getTaskById(id) {
-  return getTasks().find((t) => t.id === id);
+// Find one task by its ID (returns undefined when there is none).
+// With a guildId, tasks from other servers are treated as not found.
+export function getTaskById(id, guildId) {
+  return getTasks(guildId).find((t) => t.id === id);
 }
 
 // Merge changes into the task with this ID.

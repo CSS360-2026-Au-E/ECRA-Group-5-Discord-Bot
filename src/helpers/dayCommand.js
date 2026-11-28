@@ -33,6 +33,6 @@ export const dayCommand = {
     const from = interaction.options.getInteger("from") ?? 0;
     const to = interaction.options.getInteger("to") ?? 23;
 
-    await interaction.reply(cal.dayToText(date, from, to, getCalendarEvents(), getTasks()));
+    await interaction.reply(cal.dayToText(date, from, to, getCalendarEvents(interaction.guildId), getTasks(interaction.guildId)));
   },
 };

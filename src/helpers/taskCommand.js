@@ -112,6 +112,7 @@ async function handleAdd(interaction) {
   }
 
   const saved = addTask({
+    guildId: interaction.guildId,
     title,
     due,
     time,
@@ -128,7 +129,7 @@ async function handleComplete(interaction) {
   const id = interaction.options.getInteger("id");
   const undo = interaction.options.getBoolean("undo") ?? false;
 
-  const existing = getTaskById(id);
+  const existing = getTaskById(id, interaction.guildId);
   if (!existing) {
     return interaction.reply({ content: `There is no task with ID ${id}.`, ephemeral: true });
   }
@@ -148,7 +149,7 @@ async function handleComplete(interaction) {
 // /task edit
 async function handleEdit(interaction) {
   const id = interaction.options.getInteger("id");
-  const task = getTaskById(id);
+  const task = getTaskById(id, interaction.guildId);
 
   if (!task) {
     return interaction.reply({

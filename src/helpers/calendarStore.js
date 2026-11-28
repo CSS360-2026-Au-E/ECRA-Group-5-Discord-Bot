@@ -5,14 +5,18 @@ import path from "path";
 const DATA_DIR = path.join(process.cwd(), "data");
 const EVENTS_FILE = path.join(DATA_DIR, "events.json");
 
-// Read all saved events (returns [] if there are none yet)
-export function getCalendarEvents() {
+// Read saved events (returns [] if there are none yet).
+// Pass a Discord server ID (guildId) to get only that server's events.
+// Leave it out to get every server's events (used by the reminder scheduler).
+export function getCalendarEvents(guildId) {
   if (!fs.existsSync(EVENTS_FILE)) return [];
+  let events;
   try {
-    return JSON.parse(fs.readFileSync(EVENTS_FILE, "utf8"));
+    events = JSON.parse(fs.readFileSync(EVENTS_FILE, "utf8"));
   } catch {
     return [];
   }
+  return guildId === undefined ? events : events.filter((e) => e.guildId === guildId);
 }
 
 // Save the full list of events
@@ -25,10 +29,11 @@ export function saveCalendarEvents(events) {
 // location and description are optional and saved as null when left out.
 // createdBy is the creator's username (for display). createdById is their
 // Discord user ID, which never changes, so permission checks use it.
-export function addCalendarEvent({ title, date, time, location, description, createdBy, createdById }) {  const events = getCalendarEvents();
+export function addCalendarEvent({ guildId, title, date, time, location, description, createdBy, createdById }) {  const events = getCalendarEvents();
   const nextId = events.reduce((max, e) => Math.max(max, e.id), 0) + 1;
   const newEvent = {
     id: nextId,
+    guildId: guildId ?? null,
     title,
     date,
     time,
@@ -42,9 +47,10 @@ export function addCalendarEvent({ title, date, time, location, description, cre
   return newEvent;
 }
 
-// Find one event by its ID (returns undefined if there is none)
-export function getCalendarEventById(id) {
-  return getCalendarEvents().find((e) => e.id === id);
+// Find one event by its ID (returns undefined if there is none).
+// With a guildId, events from other servers are treated as not found.
+export function getCalendarEventById(id, guildId) {
+  return getCalendarEvents(guildId).find((e) => e.id === id);
 }
 
 // Merge `changes` into the event with this ID.
