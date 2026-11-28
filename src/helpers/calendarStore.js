@@ -23,10 +23,9 @@ export function saveCalendarEvents(events) {
 
 // Add one new event and give it the next ID number.
 // location and description are optional and saved as null when left out.
-// TODO: createdBy is a username, which can change. Store the user ID
-// (createdById) instead once we add permission checks for edit/delete.
-export function addCalendarEvent({ title, date, time, location, description, createdBy }) {
-  const events = getCalendarEvents();
+// createdBy is the creator's username (for display). createdById is their
+// Discord user ID, which never changes, so permission checks use it.
+export function addCalendarEvent({ title, date, time, location, description, createdBy, createdById }) {  const events = getCalendarEvents();
   const nextId = events.reduce((max, e) => Math.max(max, e.id), 0) + 1;
   const newEvent = {
     id: nextId,
@@ -36,6 +35,7 @@ export function addCalendarEvent({ title, date, time, location, description, cre
     location: location ?? null,
     description: description ?? null,
     createdBy,
+    createdById: createdById ?? null,
   };
   events.push(newEvent);
   saveCalendarEvents(events);

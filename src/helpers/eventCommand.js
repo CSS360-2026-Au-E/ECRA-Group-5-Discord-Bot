@@ -7,6 +7,7 @@ import {
   getCalendarEvents,
   updateCalendarEvent,
 } from "./calendarStore";
+import { canChangeEvent, noPermissionReply } from "./permissions";
 
 // /event add title:Team meeting date:2026-10-30 time:15:00 location:Room 204 description:Sprint planning
 // /event edit id:3 time:16:00 location:Library
@@ -105,6 +106,7 @@ async function handleAdd(interaction) {
     location,
     description,
     createdBy: interaction.user.username,
+    createdById: interaction.user.id,
   });
 
   // Confirm it was added
@@ -114,12 +116,13 @@ async function handleAdd(interaction) {
 // /event edit
 async function handleEdit(interaction) {
   const id = interaction.options.getInteger("id");
-  if (!getCalendarEventById(id)) {
+  const event = getCalendarEventById(id);
+  if (!event) {
     return interaction.reply({ content: `There is no event with ID ${id}.`, ephemeral: true });
   }
-
-  // TODO: permission check. Only the creator or a moderator should edit.
-  // Events store the creator's username for now (see calendarStore.js).
+  if (!canChangeEvent(event, interaction)) {
+    return interaction.reply(noPermissionReply("edit", "event"));
+  }
 
   const changes = {};
 
@@ -170,17 +173,17 @@ async function handleEdit(interaction) {
 // /event delete
 async function handleDelete(interaction) {
   const id = interaction.options.getInteger("id");
-
-  // TODO: permission check. Only the creator or a moderator should delete.
-  // Events store the creator's username for now (see calendarStore.js).
-
-  const removed = deleteCalendarEvent(id);
-  if (!removed) {
+  const event = getCalendarEventById(id);
+  if (!event) {
     return interaction.reply({ content: `There is no event with ID ${id}.`, ephemeral: true });
   }
+  if (!canChangeEvent(event, interaction)) {
+    return interaction.reply(noPermissionReply("delete", "event"));
+  }
+
+  const removed = deleteCalendarEvent(id);
   return interaction.reply(`🗑️ **Event deleted:** ${removed.title} (ID ${removed.id})`);
 }
-
 // /event list
 // Shows up to 15 upcoming events, soonest first, so nobody has to remember IDs.
 async function handleList(interaction) {

@@ -53,13 +53,20 @@ export function saveTasks(tasks) {
 }
 
 // Add one new task and give it the next ID number
-// TODO: createdBy is a username, which can change. Store the user ID
-// (createdById) instead once we add permission checks for edit/complete.
-export function addTask({ title, due, time, assigneeIds, createdBy }) {
-  const tasks = getTasks();
+// createdBy is the creator's username (for display). createdById is their
+// Discord user ID, which never changes, so permission checks use it.
+export function addTask({ title, due, time, assigneeIds, createdBy, createdById }) {  const tasks = getTasks();
   const nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
-  const newTask = { id: nextId, title, due, time, assigneeIds, createdBy, done: false };
-  tasks.push(newTask);
+  const newTask = {
+    id: nextId,
+    title,
+    due,
+    time,
+    assigneeIds,
+    createdBy,
+    createdById: createdById ?? null,
+    done: false,
+  };  tasks.push(newTask);
   saveTasks(tasks);
   return newTask;
 }

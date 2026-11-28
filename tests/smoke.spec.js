@@ -23,10 +23,11 @@ const textOf = (reply) => (typeof reply === "string" ? reply : reply.content);
 
 // A fake slash-command interaction. `options` maps option names to values;
 // user options are passed as { id: "..." } objects.
-function fakeInteraction(commandName, subcommand, options = {}) {
+function fakeInteraction(commandName, subcommand, options = {}, actor = {}) {
   const interaction = {
     commandName,
-    user: { id: "100000000000000001", username: "smoke-tester" },
+    user: actor.user ?? { id: "100000000000000001", username: "smoke-tester" },
+    memberPermissions: actor.memberPermissions ?? null,
     replies: [],
     replied: false,
     deferred: false,
@@ -91,11 +92,18 @@ describe("Smoke test: core bot features", function () {
   const reminderDate = `${nextYear}-06-14`;
   const assignee = { id: "100000000000000002" };
   const assignee2 = { id: "100000000000000003" };
+  // People other than the creator, for the permission checks (#34).
+  const stranger = { user: { id: "100000000000000009", username: "stranger" } };
+  const moderator = {
+    user: { id: "100000000000000008", username: "mod" },
+    memberPermissions: { has: () => true },
+  };
+  const asAssignee = { user: { id: assignee.id, username: "assignee" } };
+
 
   // Send a slash command through the real handler; return its last reply.
-  async function run(commandName, subcommand, options) {
-    const interaction = fakeInteraction(commandName, subcommand, options);
-    await handleInteraction(interaction);
+  async function run(commandName, subcommand, options, actor) {
+    const interaction = fakeInteraction(commandName, subcommand, options, actor);    await handleInteraction(interaction);
     expect(interaction.replies, `${commandName} ${subcommand ?? ""} sent no reply`).to.not.be.empty;
     return interaction.replies[interaction.replies.length - 1];
   }
@@ -173,6 +181,25 @@ describe("Smoke test: core bot features", function () {
     expect(readJson("events.json")[0]).to.include({ time: "16:30", location: "UW1-031" });
   });
 
+    it("/event edit and delete refuse anyone who isn't the creator or a moderator", async () => {
+    const before = readJson("events.json");
+
+    const edit = await run("event", "edit", { id: 1, title: "Hijacked" }, stranger);
+    expect(edit.ephemeral).to.equal(true);
+    expect(textOf(edit)).to.include("don't have permission");
+
+    const del = await run("event", "delete", { id: 1 }, stranger);
+    expect(del.ephemeral).to.equal(true);
+    expect(textOf(del)).to.include("don't have permission");
+
+    expect(readJson("events.json")).to.deep.equal(before);
+  });
+
+  it("/event edit lets a moderator change someone else's event", async () => {
+    const reply = textOf(await run("event", "edit", { id: 1, location: "UW1-031" }, moderator));
+    expect(reply).to.include("Event updated");
+  });
+
   // ---------- Tasks ----------
 
   it("/task add saves a task with assignees", async () => {
@@ -246,6 +273,26 @@ describe("Smoke test: core bot features", function () {
     expect(readJson("tasks.json")[0].done).to.equal(true);
 
     expect(textOf(await run("task", "complete", { id: 1, undo: true }))).to.include("Task reopened");
+    expect(readJson("tasks.json")[0].done).to.equal(false);
+  });
+
+    it("/task edit and complete refuse anyone who isn't the creator, an assignee, or a moderator", async () => {
+    const before = readJson("tasks.json");
+
+    const edit = await run("task", "edit", { id: 1, title: "Hijacked" }, stranger);
+    expect(edit.ephemeral).to.equal(true);
+    expect(textOf(edit)).to.include("don't have permission");
+
+    const complete = await run("task", "complete", { id: 1 }, stranger);
+    expect(complete.ephemeral).to.equal(true);
+    expect(textOf(complete)).to.include("don't have permission");
+
+    expect(readJson("tasks.json")).to.deep.equal(before);
+  });
+
+  it("/task complete works for an assignee who didn't create the task", async () => {
+    expect(textOf(await run("task", "complete", { id: 1 }, asAssignee))).to.include("Task complete");
+    expect(textOf(await run("task", "complete", { id: 1, undo: true }, asAssignee))).to.include("Task reopened");
     expect(readJson("tasks.json")[0].done).to.equal(false);
   });
 
