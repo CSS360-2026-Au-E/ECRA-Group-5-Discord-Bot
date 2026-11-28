@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, userMention } from "discord.js";
 import * as cal from "./calendar";
 import { addTask, getTaskById, setTaskDone, updateTask } from "./taskStore";
+import { canChangeTask, noPermissionReply } from "./permissions";
 
 // How many people one task can be assigned to.
 const MAX_ASSIGNEES = 5;
@@ -116,6 +117,7 @@ async function handleAdd(interaction) {
     time,
     assigneeIds,
     createdBy: interaction.user.username,
+    createdById: interaction.user.id,
   });
 
   return interaction.reply(`📝 **Task added!**\n${taskDetails(saved)}`);
@@ -126,14 +128,15 @@ async function handleComplete(interaction) {
   const id = interaction.options.getInteger("id");
   const undo = interaction.options.getBoolean("undo") ?? false;
 
-  // TODO: permission check. Only an assignee, the creator, or a moderator
-  // should complete a task. Tasks store the creator's username for now
-  // (see taskStore.js).
-
-  const task = setTaskDone(id, !undo);
-  if (!task) {
+  const existing = getTaskById(id);
+  if (!existing) {
     return interaction.reply({ content: `There is no task with ID ${id}.`, ephemeral: true });
   }
+  if (!canChangeTask(existing, interaction)) {
+    return interaction.reply(noPermissionReply(undo ? "reopen" : "complete", "task"));
+  }
+
+  const task = setTaskDone(id, !undo);
 
   return interaction.reply(
     undo
@@ -154,10 +157,10 @@ async function handleEdit(interaction) {
     });
   }
 
-  // TODO: permission check. Only an assignee, the creator, or a moderator
-  // should edit a task. Tasks store the creator's username for now
-  // (see taskStore.js).
-
+  if (!canChangeTask(task, interaction)) {
+    return interaction.reply(noPermissionReply("edit", "task"));
+  }
+  
   const changes = {};
 
   const title = interaction.options.getString("title")?.trim();
