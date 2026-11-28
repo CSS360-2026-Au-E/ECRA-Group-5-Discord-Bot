@@ -100,6 +100,7 @@ async function handleAdd(interaction) {
 
   // Save the event
   const saved = addCalendarEvent({
+    guildId: interaction.guildId,
     title,
     date,
     time,
@@ -116,7 +117,7 @@ async function handleAdd(interaction) {
 // /event edit
 async function handleEdit(interaction) {
   const id = interaction.options.getInteger("id");
-  const event = getCalendarEventById(id);
+  const event = getCalendarEventById(id, interaction.guildId);
   if (!event) {
     return interaction.reply({ content: `There is no event with ID ${id}.`, ephemeral: true });
   }
@@ -173,7 +174,7 @@ async function handleEdit(interaction) {
 // /event delete
 async function handleDelete(interaction) {
   const id = interaction.options.getInteger("id");
-  const event = getCalendarEventById(id);
+  const event = getCalendarEventById(id, interaction.guildId);
   if (!event) {
     return interaction.reply({ content: `There is no event with ID ${id}.`, ephemeral: true });
   }
@@ -184,10 +185,11 @@ async function handleDelete(interaction) {
   const removed = deleteCalendarEvent(id);
   return interaction.reply(`🗑️ **Event deleted:** ${removed.title} (ID ${removed.id})`);
 }
+
 // /event list
 // Shows up to 15 upcoming events, soonest first, so nobody has to remember IDs.
 async function handleList(interaction) {
-  const upcoming = cal.upcomingEvents(getCalendarEvents());
+  const upcoming = cal.upcomingEvents(getCalendarEvents(interaction.guildId));
   if (upcoming.length === 0) {
     return interaction.reply("📭 No upcoming events. Add one with /event add.");
   }

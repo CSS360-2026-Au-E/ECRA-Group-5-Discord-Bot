@@ -23,6 +23,7 @@ export function saveReminders(reminders) {
 
 // Add a reminder with its own ID.
 export function addReminder({
+  guildId,
   type,
   itemId,
   title,
@@ -35,6 +36,7 @@ export function addReminder({
 
   const reminder = {
     id: nextId,
+    guildId: guildId ?? null,
     type,
     itemId,
     title,
